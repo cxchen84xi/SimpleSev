@@ -5,6 +5,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 //用来标记是否是控制类
+//false
 @Retention(RetentionPolicy.RUNTIME)  
 @Target(ElementType.METHOD)  
 public @interface Action {
