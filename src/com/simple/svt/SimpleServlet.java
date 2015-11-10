@@ -19,6 +19,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.prolib.entity.ResultMsg;
 import com.prolib.err.ThrowError;
+import com.prolib.utils.GConvert;
 import com.simple.ann.Param;
 import com.simple.logs.ConsoleLog;
 import com.simple.utils.GsonHelper;
@@ -77,6 +78,11 @@ public class SimpleServlet extends ExtServlet {
 					for(int i =0;i<parameters.length;i++){
 						Parameter parameter =parameters[i];
 						if(method.getParameterAnnotations().length<0)continue;
+						if(method.getParameterAnnotations()[i].length<=0){
+							System.out.printf("方法 %s 未添加参数\n ", method.getName()); 
+							isSameAnn =false;
+							break;
+						}
 						Param param = (Param)method.getParameterAnnotations()[i][0];  
 			            //System.out.printf("Parameter name #%d: %s\n", i, param.value());  
 			            
@@ -85,8 +91,9 @@ public class SimpleServlet extends ExtServlet {
 						methodItem[i]=param.value();
 						methodListItem[i]=parameter.getType();
 					}
+					if(!isSameAnn)continue;
 					 
-					//System.out.println(method.getName()+":"+builder.toString());	
+					System.out.println("绑定:"+method.getName()+":"+builder.toString());	
 					methodsList.put(method.getName(), methodListItem);
 					methodsMap.put(method.getName(), methodItem);
 				}
@@ -136,13 +143,21 @@ public class SimpleServlet extends ExtServlet {
 					}else if(key.equals("res")|| key.equals("resp")||key.equals("response")||list[i].getSimpleName().equalsIgnoreCase("HttpServletResponse")){
 						obj[i]=	response;
 					}else{
-						obj[i]=	request.getParameter(key);
+						 if(list[i].getSimpleName().equals("int")){
+							 obj[i]= (int)Integer.parseInt(request.getParameter(key));
+						 }else if(list[i].getSimpleName().equals("double")){
+							 obj[i]=(double) Double.parseDouble(request.getParameter(key));
+						 }else if(list[i].getSimpleName().equals("String")){
+							 obj[i]= request.getParameter(key).toString();
+						 }else{
+							 obj[i]= request.getParameter(key);
+						 }
+						
 						if(obj[i]==null){
 							System.out.println(key+" null");
 						}else{
 							System.out.println(key+" "+obj[i].toString());
 						}
-						
 					}
 					
 				}
