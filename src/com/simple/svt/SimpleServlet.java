@@ -2,10 +2,12 @@ package com.simple.svt;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.Enumeration;
 import java.util.HashMap;
 
 import javax.servlet.ServletConfig;
@@ -127,22 +129,31 @@ public class SimpleServlet extends ExtServlet {
 				out.print(callback + "(");
 			}
 			
+			Method method =null;
+			String[] methodItem =null;
 			try {
 				Class<?>[] list=  methodsList.get(m);
-				Method method = this.getClass().getDeclaredMethod(m, list);
+				 method = this.getClass().getDeclaredMethod(m, list);
 				
-				String[] methodItem = methodsMap.get(m);
+				 methodItem = methodsMap.get(m);
 				
 				Object[] obj = new Object[list.length];
 				
 				for(int i=0;i<methodItem.length;i++){
 					String key =methodItem[i];
 					
+					
+					
 					if(key.equals("req")||key.equals("request") || list[i].getSimpleName().equalsIgnoreCase("HttpServletRequest")){
 						obj[i]=	request;
 					}else if(key.equals("res")|| key.equals("resp")||key.equals("response")||list[i].getSimpleName().equalsIgnoreCase("HttpServletResponse")){
 						obj[i]=	response;
 					}else{
+						if(request.getParameter(key)==null){
+							System.out.println("[警告]"+key+",参数的值为空");
+							continue;
+						}
+						
 						 if(list[i].getSimpleName().equals("int")){
 							 obj[i]= (int)Integer.parseInt(request.getParameter(key));
 						 }else if(list[i].getSimpleName().equals("double")){
@@ -176,23 +187,30 @@ public class SimpleServlet extends ExtServlet {
 				msg.setErrorCode(500);
 				msg.setErrorMsg(e.getMessage());
 				out.print(GsonHelper.getGson().toJson(msg));
-				
+				System.err.println("[异常],没有这样的方法，或者安全问题:"+m);
 			} catch (IllegalAccessException e) {
 				ResultMsg msg = new ResultMsg();
 				msg.setErrorCode(500);
 				msg.setErrorMsg(e.getMessage());
 				out.print(GsonHelper.getGson().toJson(msg));
-				
+				System.err.println("[异常],方法调用出错:"+m);
+				printKey(m,methodItem);
+				printParams(request);
 			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 				ResultMsg msg = new ResultMsg();
 				msg.setErrorCode(500);
 				msg.setErrorMsg(e.getMessage());
 				out.print(GsonHelper.getGson().toJson(msg));
+				System.err.println("[异常],方法参数调用出错:"+m);
+				printKey(m,methodItem);
+				printParams(request);
 				
 			} catch (InvocationTargetException e) {
 				e.printStackTrace();
 				ResultMsg msg = new ResultMsg();
+				System.err.println("[警告],方法内部抛出异常:"+m);
+				printParams(request);
 				try{
 					ThrowError err = (ThrowError)e.getTargetException();
 					msg.setErrorCode(err.getErrorCode());
@@ -207,6 +225,8 @@ public class SimpleServlet extends ExtServlet {
 				
 			} catch(Exception e){
 				e.printStackTrace();
+				System.err.println("[异常],未知出错:"+m);
+				printParams(request);
 				ResultMsg msg = new ResultMsg();
 				
 				msg.setErrorMsg(e.getMessage());
@@ -219,10 +239,44 @@ public class SimpleServlet extends ExtServlet {
 				
 				out.close();
 			}
+		}else{
+			System.out.println("[警告],不存在方法:"+m);
 		}
 	}
 	
+	private void printParams(HttpServletRequest request) throws UnsupportedEncodingException{
+		Enumeration<String> paramNames = request.getParameterNames();
+		StringBuilder buffer = new StringBuilder();
+		String paramName = null;
+        buffer.append("Param:");
+        while (paramNames.hasMoreElements()) {
+            paramName = paramNames.nextElement();
+            buffer.append("[");
+            buffer.append(paramName);
+            buffer.append(":");
+            String encoding = GConvert.getEncoding(request.getParameter(paramName));
+            if (encoding.equals("ISO-8859-1")) {
+                buffer.append(new String(request.getParameter(paramName).getBytes(encoding), "utf-8"));
+            } else {
+                buffer.append(request.getParameter(paramName));
+            }
+            //buffer.append(new String(request.getParameter(paramName).getBytes(),"iso8859-1")).append("\n");
+            // buffer.append(new String(request.getParameter(paramName).getBytes(),"utf-8")).append("\n");
+            // buffer.append(new String(request.getParameter(paramName).getBytes(),"gb2312")).append("\n");
+            //  buffer.append(new String(request.getParameter(paramName).getBytes("iso8859-1"),"utf-8"));
+            //  buffer.append(new String(request.getParameter(paramName).getBytes("utf-8"),"utf-8")).append("\n");
+            buffer.append(":=>");
+            buffer.append(encoding);
+            buffer.append("]");
+        }
+        System.out.println(buffer.toString());
+	}
 	
+	private void printKey(String medthodName,String[] methodItem){
+		
+		
+		System.out.println("方法:"+medthodName+",参数:["+StringUtils.join(methodItem, ",")+"]");
+	}
 
 	protected String getJson(ResultMsg msg) {
 	        //Output json;
